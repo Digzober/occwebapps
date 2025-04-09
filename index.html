@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oasis Cannabis Products Widget</title>
+  <!-- Load Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.16.0/firebase-database-compat.js"></script>
+  <!-- Font Awesome for arrow icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+  <style>
+    /* Base Styles */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    /* Widget Container */
+    .products-container { padding: 20px; position: relative; }
+    .scroll-arrow {
+      position: absolute; top: 50%; transform: translateY(-50%);
+      background: rgba(0,0,0,0.5); color: #fff;
+      border: none; border-radius: 50%; width: 40px; height: 40px;
+      cursor: pointer; z-index: 10; display: none;
+    }
+    .products-container:hover .scroll-arrow { display: block; }
+    .scroll-arrow.left-arrow { left: 10px; }
+    .scroll-arrow.right-arrow { right: 10px; }
+    .products-scroll {
+      display: flex; gap: 20px; overflow-x: auto;
+      scroll-behavior: smooth; padding-bottom: 20px; cursor: grab;
+    }
+    .product-card {
+      position: relative; flex: 0 0 350px;
+      background: #fff; border-radius: 12px; padding: 20px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      display: flex; flex-direction: column; text-decoration: none;
+      color: inherit; min-height: 500px; transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    .product-card:hover { transform: translateY(-5px); box-shadow: 0 8px 16px rgba(0,0,0,0.15); }
+    .product-header { margin-bottom: 10px; }
+    .product-title { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+    .product-price-box { display: inline-block; padding: 5px 10px; border: 2px solid #000; background: #fff; border-radius: 4px; }
+    .product-image-container { height: 280px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+    .product-image { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .strain-indica { background: #d1c4e9; color: #fff; padding: 4px 8px; border-radius: 4px; }
+    .thc-badge, .cbd-badge {
+      display: inline-block; padding: 6px 12px; border-radius: 20px;
+      font-size: 14px; font-weight: 500; background: #f1f1f1; color: #333;
+      border: 1px solid #ddd; margin-right: 5px;
+    }
+    .add-to-cart {
+      background: #000; color: #fff; border: none; border-radius: 6px;
+      padding: 12px 15px; font-size: 15px; font-weight: 500;
+      cursor: pointer; margin-top: auto; transition: background 0.2s;
+    }
+    .add-to-cart:hover { background: #333; }
+    .product-icon {
+      position: absolute; top: 10px; right: 10px; width: 50px; height: 50px;
+      background: #fff; border-radius: 50%; overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .product-icon img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    @media (max-width: 768px) {
+      .product-card { flex: 0 0 90%; min-height: 450px; }
+      .products-scroll { gap: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Public Widget Section -->
+  <div class="products-container">
+    <button class="scroll-arrow left-arrow" onclick="scrollLeft()">
+      <i class="fa fa-arrow-left"></i>
+    </button>
+    <div class="products-scroll" id="products-display">
+      <!-- Initially shows loading message -->
+      <div id="loading-products" style="width:100%; text-align:center;">Loading products...</div>
+    </div>
+    <button class="scroll-arrow right-arrow" onclick="scrollRight()">
+      <i class="fa fa-arrow-right"></i>
+    </button>
+  </div>
+
+  <!-- Firebase and Rendering Scripts -->
+  <script>
+    // --- Initialize Firebase (only once) ---
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyASVWyRn-xBHh_BQvOAMQ0R24mnFtqE-eU",
+        authDomain: "occwebimages.firebaseapp.com",
+        databaseURL: "https://occwebimages-default-rtdb.firebaseio.com",
+        projectId: "occwebimages",
+        storageBucket: "occwebimages.firebasestorage.app",
+        messagingSenderId: "86677569795",
+        appId: "1:86677569795:web:1a854a6778bd9f7c0aa936"
+      });
+    }
+    const db = firebase.database();
+
+    // --- Function to Render Public Products ---
+    function renderPublicProducts() {
+      const container = document.getElementById("products-display");
+      container.innerHTML = '<div id="loading-products" style="width:100%; text-align:center;">Loading products...</div>';
+      const productsRef = db.ref('products');
+      productsRef.orderByChild('createdAt').on('value', function(snapshot) {
+        if (!snapshot.exists()) {
+          container.innerHTML = '<div style="width:100%; text-align:center;">No products available</div>';
+          return;
+        }
+        let products = [];
+        snapshot.forEach(function(childSnapshot) {
+          products.push({ id: childSnapshot.key, ...childSnapshot.val() });
+        });
+        // Sort products (newest first)
+        products.sort(function(a, b){ return (b.createdAt || 0) - (a.createdAt || 0); });
+        let html = "";
+        products.forEach(function(product) {
+          // Set defaults if missing
+          const strainType = product.strainType || "indica";
+          const strainLabel = strainType.charAt(0).toUpperCase() + strainType.slice(1);
+          html += `<a href="https://oasiscannabisnm.com/find-us" class="product-card">`;
+          if (product.iconData && product.iconData.trim() !== "") {
+            html += `<div class="product-icon"><img src="${product.iconData}" alt="Icon"></div>`;
+          }
+          html += `<div class="product-header"><h3 class="product-title">${product.title || product.name || "Unnamed Product"}</h3>`;
+          if (product.price) {
+            html += `<div class="product-price-box"><span class="product-price">Price: ${product.price}</span></div>`;
+          }
+          html += `</div>`;
+          html += `<div class="product-image-container">`;
+          if (product.imageData) {
+            html += `<img src="${product.imageData}" alt="${product.name}" class="product-image">`;
+          } else {
+            html += `<div style="width:150px; height:150px; background:#f5f5f5; border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                        <i class="fa fa-image" style="font-size: 50px; color: #aaa;"></i>
+                      </div>`;
+          }
+          html += `</div>`;
+          html += `<div class="product-info">`;
+          html += `<span class="strain-${strainType}">${strainLabel}</span>`;
+          if (product.thcContent) {
+            html += `<span class="thc-badge">THC: ${product.thcContent}</span>`;
+          }
+          if (product.cbdContent) {
+            html += `<span class="cbd-badge">CBD: ${product.cbdContent}</span>`;
+          }
+          html += `</div>`;
+          html += `<button class="add-to-cart" onclick="event.preventDefault();">Add to Cart</button>`;
+          html += `</a>`;
+        });
+        container.innerHTML = html;
+      }, function(error) {
+        container.innerHTML = `<div style="width:100%; text-align:center; color:red;">Error: ${error.message}</div>`;
+      });
+    }
+    renderPublicProducts();
+
+    // --- Scroll Functions ---
+    function scrollLeft() {
+      document.getElementById("products-display").scrollBy({ left: -300, behavior: 'smooth' });
+    }
+    function scrollRight() {
+      document.getElementById("products-display").scrollBy({ left: 300, behavior: 'smooth' });
+    }
+
+    // --- Enable Drag-to-Scroll (for desktop) ---
+    document.addEventListener("DOMContentLoaded", function() {
+      const slider = document.getElementById("products-display");
+      let isDown = false, startX, scrollLeftPos;
+      slider.addEventListener('mousedown', function(e) {
+        isDown = true;
+        startX = e.pageX - slider.offsetLeft;
+        scrollLeftPos = slider.scrollLeft;
+      });
+      slider.addEventListener('mouseleave', function() { isDown = false; });
+      slider.addEventListener('mouseup', function() { isDown = false; });
+      slider.addEventListener('mousemove', function(e) {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - slider.offsetLeft;
+        const walk = (x - startX) * 2;
+        slider.scrollLeft = scrollLeftPos - walk;
+      });
+    });
+  </script>
+</body>
+</html>
