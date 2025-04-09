@@ -1,0 +1,25 @@
+backend:
+  name: git-gateway
+  branch: main     # Change to your branch name if it is not 'main'
+
+media_folder: "uploads"      # Folder where uploaded images will be stored (inside the repo)
+public_folder: "uploads"     # URL path for the uploaded media
+
+collections:
+  - name: "products"         # Name identifier for your products collection
+    label: "Products"        # Label for the CMS UI
+    folder: ""               # Use the repository root for a single JSON file, or you can specify a folder (e.g., "data/products")
+    create: false            # Set to false if you want to use an existing JSON file; true if you want to create new files per product
+    identifier_field: "id"
+    slug: "{{slug}}"
+    fields:
+      - { label: "ID", name: "id", widget: "string", required: false }
+      - { label: "Product Name", name: "name", widget: "string" }
+      - { label: "Title", name: "title", widget: "string" }
+      - { label: "Price", name: "price", widget: "string" }
+      - { label: "Strain Type", name: "strainType", widget: "select", options: ["indica", "sativa", "hybrid"] }
+      - { label: "THC Content", name: "thcContent", widget: "string" }
+      - { label: "CBD Content", name: "cbdContent", widget: "string" }
+      - { label: "Image URL", name: "imageData", widget: "string" }
+      - { label: "Icon URL", name: "iconData", widget: "string" }
+      - { label: "Creation Date", name: "createdAt", widget: "datetime" }
