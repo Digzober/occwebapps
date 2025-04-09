@@ -1,0 +1,28 @@
+{
+  "products": [
+    {
+      "id": "1",
+      "name": "Blue Dream",
+      "title": "Blue Dream",
+      "price": "$19.99",
+      "strainType": "hybrid",
+      "thcContent": "21.5%",
+      "cbdContent": "0.5%",
+      "imageData": "https://example.com/path-to-blue-dream.jpg",
+      "iconData": "https://example.com/path-to-blue-dream-icon.jpg",
+      "createdAt": 1681084800000
+    },
+    {
+      "id": "2",
+      "name": "Northern Lights",
+      "title": "Northern Lights",
+      "price": "$17.99",
+      "strainType": "indica",
+      "thcContent": "18%",
+      "cbdContent": "1%",
+      "imageData": "https://example.com/path-to-northern-lights.jpg",
+      "iconData": "",
+      "createdAt": 1681098400000
+    }
+  ]
+}
